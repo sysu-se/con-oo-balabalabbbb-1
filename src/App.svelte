@@ -1,54 +1,99 @@
 <script>
-	import { onMount } from 'svelte';
-	import { validateSencode } from '@sudoku/sencode';
-	import game from '@sudoku/game';
-	import { modal } from '@sudoku/stores/modal';
-	import { gameWon } from '@sudoku/stores/game';
-	import Board from './components/Board/index.svelte';
-	import Controls from './components/Controls/index.svelte';
-	import Header from './components/Header/index.svelte';
-	import Modal from './components/Modal/index.svelte';
+  import { gameStore } from './gameStore.js';
+  let selectedRow = 0;
+  let selectedCol = 0;
 
-	gameWon.subscribe(won => {
-		if (won) {
-			game.pause();
-			modal.show('gameover');
-		}
-	});
+  function selectCell(r, c) {
+    selectedRow = r;
+    selectedCol = c;
+  }
 
-	onMount(() => {
-		let hash = location.hash;
+  function inputNumber(num) {
+    gameStore.guess(selectedRow, selectedCol, num);
+  }
 
-		if (hash.startsWith('#')) {
-			hash = hash.slice(1);
-		}
-
-		let sencode;
-		if (validateSencode(hash)) {
-			sencode = hash;
-		}
-
-		modal.show('welcome', { onHide: game.resume, sencode });
-	});
+  function clearCell() {
+    gameStore.guess(selectedRow, selectedCol, null);
+  }
 </script>
 
-<!-- Timer, Menu, etc. -->
-<header>
-	<Header />
-</header>
+<main>
+  <h1>数独游戏</h1>
 
-<!-- Sudoku Field -->
-<section>
-	<Board />
-</section>
+  <div class="board">
+    {#each $gameStore.grid as row, r}
+      <div class="row">
+        {#each row as cell, c}
+          <div 
+            class="cell { $gameStore.originalGrid[r][c] !== null ? 'fixed' : '' } { selectedRow === r && selectedCol === c ? 'selected' : '' }"
+            on:click={() => selectCell(r, c)}
+          >
+            {cell ?? ''}
+          </div>
+        {/each}
+      </div>
+    {/each}
+  </div>
 
-<!-- Keyboard -->
-<footer>
-	<Controls />
-</footer>
+  <div class="controls">
+    <button on:click={gameStore.undo} disabled={!$gameStore.canUndo}>撤销</button>
+    <button on:click={gameStore.redo} disabled={!$gameStore.canRedo}>重做</button>
+    <button on:click={clearCell}>清空</button>
+  </div>
 
-<Modal />
+  <div class="keypad">
+    {#each [1,2,3,4,5,6,7,8,9] as num}
+      <button on:click={() => inputNumber(num)}>{num}</button>
+    {/each}
+  </div>
 
-<style global>
-	@import "./styles/global.css";
+  {#if $gameStore.isWon}
+    <div class="win">🎉 恭喜通关！</div>
+  {/if}
+</main>
+
+<style>
+  main {
+    max-width: 500px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .board {
+    display: inline-block;
+    border: 2px solid #333;
+  }
+  .row {
+    display: flex;
+  }
+  .cell {
+    width: 50px;
+    height: 50px;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .cell.fixed {
+    background: #eee;
+    font-weight: bold;
+  }
+  .cell.selected {
+    background: #e0f0ff;
+  }
+  .controls, .keypad {
+    margin: 15px 0;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  button {
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  .win {
+    font-size: 24px;
+    color: green;
+    margin-top: 20px;
+  }
 </style>
